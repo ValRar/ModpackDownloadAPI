@@ -3,6 +3,7 @@ using ModpackDownloadAPI;
 using Modrinth;
 using Modrinth.Exceptions;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,11 +63,15 @@ app.MapGet("/downloadmodpack/modrinth", async (HttpContext context, ArchiveCreat
 app.MapGet("/downloadmodpack/curseforge", async (HttpContext context, CurseForge.APIClient.ApiClient curseForgeClient, CurseForgeModpackParser modpackParser, ArchiveCreator archiveCreator,
     [FromQuery, Required] int projectId, [FromQuery, Required] int fileId) =>
 {
+    var stopwatch = new Stopwatch();
+    stopwatch.Start();
     var modpackInfo = await curseForgeClient.GetModFileAsync(projectId, fileId);
     var fileDownloadUrls = await modpackParser.ParseModpack(modpackInfo.Data.DownloadUrl);
+    app.Logger.LogInformation("Modpack parsed, creating archive...");
     var archive = fileDownloadUrls.Item2 == null || fileDownloadUrls.Item2.Length == 0 ? await archiveCreator.CreateArchive(fileDownloadUrls.Item1)
     : await archiveCreator.CreateArchiveWithReport(fileDownloadUrls.Item1, fileDownloadUrls.Item2);
     context.Response.ContentLength = archive.Length;
+    app.Logger.LogWarning("Execution completed in: {} seconds.", stopwatch.Elapsed.Seconds);
     return Results.File(archive, fileDownloadName: modpackInfo.Data.DisplayName + ".zip", contentType: "application/zip", enableRangeProcessing: true);
 }).WithName("DownloadFromCurseForge")
 .WithOpenApi();
