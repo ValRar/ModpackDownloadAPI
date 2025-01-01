@@ -1,6 +1,4 @@
-﻿using System.Text.Json.Serialization;
-
-namespace ModpackDownloadAPI.Models.CurseForge.Manifest
+﻿namespace ModpackDownloadAPI.Models.CurseForge.Manifest
 {
     public class Manifest
     {

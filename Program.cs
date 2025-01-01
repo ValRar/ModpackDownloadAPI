@@ -14,10 +14,10 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddHttpClient<ArchiveCreator>();
 builder.Services.AddHttpClient<ModrinthClient>();
-builder.Services.AddHttpClient<CurseForgeModpackParser>();
 builder.Services.AddScoped(
     sp => new CurseForge.APIClient.ApiClient(builder.Configuration.GetValue<string>("CurseForgeApiKey")
     ));
+builder.Services.AddScoped<CurseForgeModpackParser>();
 builder.Services.AddSingleton(new ModrinthClientConfig());
 
 var app = builder.Build();
@@ -47,7 +47,7 @@ app.MapGet("/downloadmodpack/modrinth", async (HttpContext context, ArchiveCreat
         }
         var dependencyTasksArray = dependencyRequestsList.ToArray();
         var dependencies = await Task.WhenAll(dependencyTasksArray);
-        var archiveStream = await archiveCreator.CreateArchive(dependencies.Select(d => d.Files[0].Url));
+        var archiveStream = await archiveCreator.CreateModrinthArchive(dependencies.Select(d => d.Files[0].Url));
         var archiveName = (await projectInfoTask).Title.Replace('.', '_') + ".zip";
         app.Logger.LogInformation("Content size: {}", archiveStream.Length);
         context.Response.ContentLength = archiveStream.Length;
@@ -66,12 +66,9 @@ app.MapGet("/downloadmodpack/curseforge", async (HttpContext context, CurseForge
     var stopwatch = new Stopwatch();
     stopwatch.Start();
     var modpackInfo = await curseForgeClient.GetModFileAsync(projectId, fileId);
-    var fileDownloadUrls = await modpackParser.ParseModpack(modpackInfo.Data.DownloadUrl);
-    app.Logger.LogInformation("Modpack parsed, creating archive...");
-    var archive = fileDownloadUrls.Item2 == null || fileDownloadUrls.Item2.Length == 0 ? await archiveCreator.CreateArchive(fileDownloadUrls.Item1)
-    : await archiveCreator.CreateArchiveWithReport(fileDownloadUrls.Item1, fileDownloadUrls.Item2);
+    var archive = await archiveCreator.CreateCurseForgeArchive(modpackInfo.Data.DownloadUrl);
     context.Response.ContentLength = archive.Length;
-    app.Logger.LogWarning("Execution completed in: {} seconds.", stopwatch.Elapsed.Seconds);
+    app.Logger.LogWarning("Execution completed in: {} seconds.", stopwatch.Elapsed.TotalSeconds);
     return Results.File(archive, fileDownloadName: modpackInfo.Data.DisplayName + ".zip", contentType: "application/zip", enableRangeProcessing: true);
 }).WithName("DownloadFromCurseForge")
 .WithOpenApi();
