@@ -5,17 +5,22 @@ using System.Text.Json;
 
 namespace ModpackDownloadAPI
 {
-    public class CurseForgeModpackParser(CurseForge.APIClient.ApiClient curseForgeClient)
+    public class CurseForgeModpackParser(CurseForge.APIClient.ApiClient curseForgeClient, 
+        JsonSerializerOptions serializerOptions)
     {
         private readonly CurseForge.APIClient.ApiClient _curseForgeClient = curseForgeClient;
+        private readonly JsonSerializerOptions _serializerOptions = serializerOptions;
 
         public async Task<Tuple<string[], DownloadUrlErrorReport[]>> ParseManifest(Stream manifestStream)
         {
-            var parsedManifest = await JsonSerializer.DeserializeAsync<Manifest>(manifestStream, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-            var getDownloadUrlTasks = parsedManifest!.Files.Select(f => _curseForgeClient.GetModFileDownloadUrlAsync(f.ProjectID, f.FileID)).ToArray();
+            var parsedManifest = await JsonSerializer.DeserializeAsync<Manifest>(manifestStream, _serializerOptions);
+            var getDownloadUrlTasks = parsedManifest!.Files.Select(f => _curseForgeClient.GetModFileDownloadUrlAsync(f.ProjectID, f.FileID))
+                .ToArray();
             var downloadUrlResults = await Task.WhenAll(getDownloadUrlTasks);
             var errorReports = GenerateErrorReports(parsedManifest.Files, downloadUrlResults);
-            return Tuple.Create(downloadUrlResults.Where(r => r.Data != null).Select(r => r.Data).ToArray(), errorReports);
+            return Tuple.Create(downloadUrlResults.Where(r => r.Data != null)
+                .Select(r => r.Data)
+                .ToArray(), errorReports);
         }
         private static DownloadUrlErrorReport[] GenerateErrorReports(Models.CurseForge.Manifest.File[] files, GenericResponse<string>[] responses)
         {

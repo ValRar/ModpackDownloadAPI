@@ -4,6 +4,7 @@ using Modrinth;
 using Modrinth.Exceptions;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,7 @@ builder.Services.AddScoped(
     ));
 builder.Services.AddScoped<CurseForgeModpackParser>();
 builder.Services.AddSingleton(new ModrinthClientConfig());
+builder.Services.AddSingleton(new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
 var app = builder.Build();
 
@@ -36,20 +38,14 @@ app.MapGet("/downloadmodpack/modrinth", async (HttpContext context, ArchiveCreat
 {
     try
     {
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
         var version = await modrinthClient.Version.GetAsync(versionId);
         var projectInfoTask = modrinthClient.Project.GetAsync(version.ProjectId);
         if (version.Dependencies == null) return Results.Problem(detail: "Requested modpack contains no dependencies.");
-        List<Task<Modrinth.Models.Version>> dependencyRequestsList = new();
-        foreach (var dependency in version.Dependencies)
-        {
-            if (dependency.VersionId == null) continue;
-            dependencyRequestsList.Add(modrinthClient.Version.GetAsync(dependency.VersionId));
-        }
-        var dependencyTasksArray = dependencyRequestsList.ToArray();
-        var dependencies = await Task.WhenAll(dependencyTasksArray);
-        var archiveStream = await archiveCreator.CreateModrinthArchive(dependencies.Select(d => d.Files[0].Url));
+        var archiveStream = await archiveCreator.CreateMrpackArchive(version.Files[0].Url);
         var archiveName = (await projectInfoTask).Title.Replace('.', '_') + ".zip";
-        app.Logger.LogInformation("Content size: {}", archiveStream.Length);
+        app.Logger.LogInformation("Content size: {}, Elapsed Time: {}", archiveStream.Length, stopwatch.Elapsed.TotalSeconds);
         context.Response.ContentLength = archiveStream.Length;
         return Results.File(archiveStream, fileDownloadName: archiveName, contentType: "application/zip");
     }
