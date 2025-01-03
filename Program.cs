@@ -15,12 +15,12 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddHttpClient<ArchiveCreator>();
 builder.Services.AddHttpClient<ModrinthClient>();
-builder.Services.AddScoped(
-    sp => new CurseForge.APIClient.ApiClient(builder.Configuration.GetValue<string>("CurseForgeApiKey")
-    ));
+builder.Services.AddSingleton(new CurseForge.APIClient.ApiClient(
+    builder.Configuration.GetValue<string>("CurseForgeApiKey")));
 builder.Services.AddScoped<CurseForgeModpackParser>();
 builder.Services.AddSingleton(new ModrinthClientConfig());
 builder.Services.AddSingleton(new JsonSerializerOptions(JsonSerializerDefaults.Web));
+builder.Services.AddSingleton<CurseForgeErrorReportFabric>();
 
 var app = builder.Build();
 
@@ -42,12 +42,13 @@ app.MapGet("/downloadmodpack/modrinth", async (HttpContext context, ArchiveCreat
         stopwatch.Start();
         var version = await modrinthClient.Version.GetAsync(versionId);
         var projectInfoTask = modrinthClient.Project.GetAsync(version.ProjectId);
-        if (version.Dependencies == null) return Results.Problem(detail: "Requested modpack contains no dependencies.");
+        if (Path.GetExtension(version.Files[0].FileName) != ".mrpack") return Results.BadRequest("Requested resource is not modpack.");
         var archiveStream = await archiveCreator.CreateMrpackArchive(version.Files[0].Url);
-        var archiveName = (await projectInfoTask).Title.Replace('.', '_') + ".zip";
+        var projectInfo = await projectInfoTask;
         app.Logger.LogInformation("Content size: {}, Elapsed Time: {}", archiveStream.Length, stopwatch.Elapsed.TotalSeconds);
         context.Response.ContentLength = archiveStream.Length;
-        return Results.File(archiveStream, fileDownloadName: archiveName, contentType: "application/zip");
+        return Results.File(archiveStream, fileDownloadName: $"{projectInfo.Title} {version.Name}.zip", 
+            contentType: "application/zip");
     }
     catch (ModrinthApiException e)
     {
@@ -61,11 +62,15 @@ app.MapGet("/downloadmodpack/curseforge", async (HttpContext context, CurseForge
 {
     var stopwatch = new Stopwatch();
     stopwatch.Start();
-    var modpackInfo = await curseForgeClient.GetModFileAsync(projectId, fileId);
-    var archive = await archiveCreator.CreateCurseForgeArchive(modpackInfo.Data.DownloadUrl);
+    var modpackInfo = await curseForgeClient.GetModAsync(projectId);
+    if (modpackInfo.Error != null) return modpackInfo.Error.CreateAPIResponse();
+    if (modpackInfo.Data.ClassId != 4471) return Results.BadRequest("Requested resource is not modpack.");
+    var modpackFileInfo = await curseForgeClient.GetModFileAsync(projectId, fileId);
+    if (modpackFileInfo.Error != null) return modpackFileInfo.Error.CreateAPIResponse();
+    var archive = await archiveCreator.CreateCurseForgeArchive(modpackFileInfo.Data.DownloadUrl);
     context.Response.ContentLength = archive.Length;
     app.Logger.LogWarning("Execution completed in: {} seconds.", stopwatch.Elapsed.TotalSeconds);
-    return Results.File(archive, fileDownloadName: modpackInfo.Data.DisplayName + ".zip", contentType: "application/zip", enableRangeProcessing: true);
+    return Results.File(archive, fileDownloadName: modpackFileInfo.Data.DisplayName + ".zip", contentType: "application/zip", enableRangeProcessing: true);
 }).WithName("DownloadFromCurseForge")
 .WithOpenApi();
 
