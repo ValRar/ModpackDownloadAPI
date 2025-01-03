@@ -1,5 +1,4 @@
-﻿using ModpackDownloadAPI.Models.CurseForge;
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text.Json;
 using System.Web;
 
@@ -87,15 +86,15 @@ namespace ModpackDownloadAPI
                 file.Dispose();
             }
         }
-        private static async Task WriteErrorReport(ZipArchive outArchive, IEnumerable<DownloadUrlErrorReport> reports)
+        private static async Task WriteErrorReport(ZipArchive outArchive, IEnumerable<CurseForgeErrorReportFabric.Report> reports)
         {
             var entry = outArchive.CreateEntry("error-report.txt");
             using var entryStream = entry.Open();
             using var writer = new StreamWriter(entryStream);
-            await writer.WriteAsync("Во время загрузки файлов сборки возникли ошибки, информация о которых представлена в текущем отчете:\nProjectID, FileID, ErrorCode\n");
+            await writer.WriteAsync("Во время загрузки файлов сборки возникли ошибки, информация о которых представлена в текущем отчете:\nDownloadLink, ProjectID, FileID, ErrorCode\n");
             foreach (var report in reports)
             {
-                await writer.WriteLineAsync($"{report.ProjectID}, {report.FileID}, {report.ErrorCode}");
+                await writer.WriteLineAsync($"{report.DownloadUrl}, {report.ProjectID}, {report.FileID}, {report.ErrorCode}");
             }
         }
         private static string GetFileNameFromUrl(string url) => HttpUtility.UrlDecode(url.Split('/').Last());
