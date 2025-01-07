@@ -35,6 +35,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.MapGet("/downloadmodpack/modrinth", async (HttpContext context, ArchiveCreator archiveCreator,
     ModrinthClient modrinthClient, [FromQuery, Required] string versionId) =>
