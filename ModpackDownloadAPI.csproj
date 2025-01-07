@@ -8,6 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="wwwroot\favicon.ico" />
+    <None Include="wwwroot\index.html" />
+    <None Include="wwwroot\style.css" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CurseForge.APIClient" Version="3.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.3" />
     <PackageReference Include="Modrinth.Net" Version="3.4.5" />
