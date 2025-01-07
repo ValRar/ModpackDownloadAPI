@@ -1,0 +1,13 @@
+.icon {
+    height: 3rem;
+    width: auto;
+}
+.icon-large {
+    height: 6rem;
+    width: auto;
+}
+.icon-container {
+    display: flex;
+    align-items: center;
+    width: min-content;
+}

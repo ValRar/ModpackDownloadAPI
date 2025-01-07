@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.FileProviders;
 using ModpackDownloadAPI;
 using Modrinth;
 using Modrinth.Exceptions;
@@ -32,6 +33,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.GetFullPath("./Webpages")),
+    RequestPath = ""
+});
 
 app.MapGet("/downloadmodpack/modrinth", async (HttpContext context, ArchiveCreator archiveCreator,
     ModrinthClient modrinthClient, [FromQuery, Required] string versionId) =>
