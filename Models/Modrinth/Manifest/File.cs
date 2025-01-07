@@ -6,7 +6,7 @@ namespace ModpackDownloadAPI.Models.Modrinth.Manifest
     {
         [JsonIgnore]
         public Stream? FileStream { get; private set; }
-        public async Task GetFileStream(HttpClient client) => FileStream = await client.GetStreamAsync(Downloads[0]);
+        public async Task GetFileStream(FileDownloader downloader) => FileStream = await downloader.DownloadFile(Downloads[0]);
 
         public void Dispose()
         {

@@ -14,11 +14,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddHttpClient<ArchiveCreator>();
+builder.Services.AddHttpClient<FileDownloader>(client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(10);
+});
 builder.Services.AddHttpClient<ModrinthClient>();
 builder.Services.AddSingleton(new CurseForge.APIClient.ApiClient(
     builder.Configuration.GetValue<string>("CurseForgeApiKey")));
-builder.Services.AddScoped<CurseForgeModpackParser>();
+builder.Services.AddSingleton<CurseForgeModpackParser>();
+builder.Services.AddSingleton<ArchiveCreator>();
 builder.Services.AddSingleton(new ModrinthClientConfig());
 builder.Services.AddSingleton(new JsonSerializerOptions(JsonSerializerDefaults.Web));
 builder.Services.AddSingleton<CurseForgeErrorReportFabric>();

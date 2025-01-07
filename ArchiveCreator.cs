@@ -6,32 +6,32 @@ namespace ModpackDownloadAPI
 {
     public class ArchiveCreator
     {
-        private readonly HttpClient _httpClient;
         private readonly CurseForgeModpackParser _modpackParser;
         private readonly ILogger<ArchiveCreator> _logger;
         private readonly JsonSerializerOptions _serializerOptions;
+        private readonly FileDownloader _fileDownloader;
 
-        public ArchiveCreator(HttpClient httpClient, ILogger<ArchiveCreator> logger,
-            CurseForgeModpackParser modpackParser, JsonSerializerOptions serializerOptions)
+        public ArchiveCreator(ILogger<ArchiveCreator> logger, CurseForgeModpackParser modpackParser, 
+            JsonSerializerOptions serializerOptions, FileDownloader fileDownloader)
         {
-            _httpClient = httpClient;
             _logger = logger;
             _modpackParser = modpackParser;
             _serializerOptions = serializerOptions;
+            _fileDownloader = fileDownloader;
         }
         public async Task<Stream> CreateMrpackArchive(string mrpackDownloadUrl)
         {
-            using var mrpackStream = await _httpClient.GetStreamAsync(mrpackDownloadUrl);
+            using var mrpackStream = await _fileDownloader.DownloadFile(mrpackDownloadUrl);
             using var mrpackArchive = new ZipArchive(mrpackStream, ZipArchiveMode.Read);
             var memoryStream = new MemoryStream();
             using (var memoryArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
             {
                 await mrpackArchive.ExtractOverridesFolderToAsync(memoryArchive);
-                var manifestEntry = mrpackArchive.GetEntry("modrinth.index.json") 
+                var manifestEntry = mrpackArchive.GetEntry("modrinth.index.json")
                     ?? throw new NullReferenceException("modrinth.index.json not found in mrpack archive.");
                 using var manifestStream = manifestEntry.Open();
-                var parsedManifest = await JsonSerializer.DeserializeAsync<Models.Modrinth.Manifest.Manifest>(manifestStream, _serializerOptions) 
-                    ?? throw new NullReferenceException("parsedManifest is null.");
+                var parsedManifest = await JsonSerializer.DeserializeAsync<Models.Modrinth.Manifest.Manifest>(manifestStream, _serializerOptions)
+                    ?? throw new NullReferenceException();
                 await AddFiles(memoryArchive, parsedManifest.Files);
             }
             memoryStream.Position = 0;
@@ -39,7 +39,7 @@ namespace ModpackDownloadAPI
         }
         public async Task<Stream> CreateCurseForgeArchive(string modpackDownloadUrl)
         {
-            using var downloadStream = await _httpClient.GetStreamAsync(modpackDownloadUrl);
+            using var downloadStream = await _fileDownloader.DownloadFile(modpackDownloadUrl);
             var memoryStream = new MemoryStream();
             using (var fromArchive = new ZipArchive(downloadStream, ZipArchiveMode.Read))
             {
@@ -48,16 +48,11 @@ namespace ModpackDownloadAPI
                 var manifestEntry = fromArchive.GetEntry("manifest.json") ?? throw new NullReferenceException("Manifest not found in modpack.");
                 using var manifestStream = manifestEntry.Open();
                 var parsedManifest = await _modpackParser.ParseManifest(manifestStream);
-                await AddFiles(toArchive, await DownloadMods(parsedManifest.Item1), parsedManifest.Item1);
+                await AddFiles(toArchive, await _fileDownloader.DownloadFiles(parsedManifest.Item1), parsedManifest.Item1);
                 await WriteErrorReport(toArchive, parsedManifest.Item2);
             }
             memoryStream.Position = 0;
             return memoryStream;
-        }
-        private async Task<Stream[]> DownloadMods(IEnumerable<string> fileDownloadUrls)
-        {
-            var downloadTasks = fileDownloadUrls.Select(_httpClient.GetStreamAsync).ToArray();
-            return await Task.WhenAll(downloadTasks);
         }
         private async Task AddFiles(ZipArchive archive, Stream[] downloadedFiles, IEnumerable<string> fileUrls)
         {
@@ -77,12 +72,14 @@ namespace ModpackDownloadAPI
         }
         private async Task AddFiles(ZipArchive archive, IEnumerable<Models.Modrinth.Manifest.File> files)
         {
-            await Task.WhenAll(files.Select(f => f.GetFileStream(_httpClient)));
+            await _fileDownloader.DownloadFiles(files);
             foreach (var file in files)
             {
                 var entry = archive.CreateEntry(file.Path, CompressionLevel.Fastest);
                 using var entryStream = entry.Open();
+                _logger.LogInformation("Start packaging {}", file.Path);
                 await file.FileStream!.CopyToAsync(entryStream);
+                _logger.LogInformation("End packaging {}", file.Path);
                 file.Dispose();
             }
         }
