@@ -20,7 +20,9 @@ builder.Services.AddHttpClient<FileDownloader>(client =>
 });
 builder.Services.AddHttpClient<ModrinthClient>();
 builder.Services.AddSingleton(new CurseForge.APIClient.ApiClient(
-    builder.Configuration.GetValue<string>("CurseForgeApiKey")));
+    File.ReadAllText(builder.Configuration.GetValue<string>("CurseForgeApiKeyFile") 
+    ?? throw new NullReferenceException("Failed to get CurseForge API key file path."))
+));
 builder.Services.AddSingleton<CurseForgeModpackParser>();
 builder.Services.AddSingleton<ArchiveCreator>();
 builder.Services.AddSingleton(new ModrinthClientConfig());

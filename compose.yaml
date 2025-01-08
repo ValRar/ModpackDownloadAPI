@@ -8,7 +8,7 @@ services:
     secrets:
       - curseforge_api_key_file
     environment:
-      CurseForgeApiKey: /run/secrets/curseforge_api_key_file
+      CurseForgeApiKeyFile: /run/secrets/curseforge_api_key_file
 secrets:
   curseforge_api_key_file:
     file: curseforge_api_key.txt
