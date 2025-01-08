@@ -11,7 +11,7 @@ namespace ModpackDownloadAPI
         private readonly JsonSerializerOptions _serializerOptions;
         private readonly FileDownloader _fileDownloader;
 
-        public ArchiveCreator(ILogger<ArchiveCreator> logger, CurseForgeModpackParser modpackParser, 
+        public ArchiveCreator(ILogger<ArchiveCreator> logger, CurseForgeModpackParser modpackParser,
             JsonSerializerOptions serializerOptions, FileDownloader fileDownloader)
         {
             _logger = logger;

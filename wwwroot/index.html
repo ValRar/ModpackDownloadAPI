@@ -106,14 +106,14 @@
     <script>
       const downloadModrinth = (versionID) => {
         window.open(
-          "http://localhost:5188/downloadmodpack/modrinth?versionid=" +
+          "/downloadmodpack/modrinth?versionid=" +
             versionID,
           "_blank"
         );
       };
       const downloadCurseForge = (projectID, fileID) => {
         window.open(
-          `http://localhost:5188/downloadmodpack/curseforge?projectid=${projectID}&fileid=${fileID}`,
+          `/downloadmodpack/curseforge?projectid=${projectID}&fileid=${fileID}`,
           "_blank"
         );
       };

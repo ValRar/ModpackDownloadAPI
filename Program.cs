@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.FileProviders;
 using ModpackDownloadAPI;
 using Modrinth;
 using Modrinth.Exceptions;
@@ -13,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.AddHttpClient<FileDownloader>(client =>
 {
@@ -55,7 +55,7 @@ app.MapGet("/downloadmodpack/modrinth", async (HttpContext context, ArchiveCreat
         var projectInfo = await projectInfoTask;
         app.Logger.LogInformation("Content size: {}, Elapsed Time: {}", archiveStream.Length, stopwatch.Elapsed.TotalSeconds);
         context.Response.ContentLength = archiveStream.Length;
-        return Results.File(archiveStream, fileDownloadName: $"{projectInfo.Title} {version.Name}.zip", 
+        return Results.File(archiveStream, fileDownloadName: $"{projectInfo.Title} {version.Name}.zip",
             contentType: "application/zip");
     }
     catch (ModrinthApiException e)

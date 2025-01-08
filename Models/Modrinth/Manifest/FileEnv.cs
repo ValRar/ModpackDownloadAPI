@@ -2,7 +2,7 @@
 {
     public class FileEnv
     {
-        public string Client {  get; set; }
+        public string Client { get; set; }
         public string Server { get; set; }
     }
 }

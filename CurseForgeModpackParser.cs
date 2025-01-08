@@ -1,11 +1,10 @@
 ﻿using CurseForge.APIClient.Models;
-using ModpackDownloadAPI.Models.CurseForge;
 using ModpackDownloadAPI.Models.CurseForge.Manifest;
 using System.Text.Json;
 
 namespace ModpackDownloadAPI
 {
-    public class CurseForgeModpackParser(CurseForge.APIClient.ApiClient curseForgeClient, 
+    public class CurseForgeModpackParser(CurseForge.APIClient.ApiClient curseForgeClient,
         JsonSerializerOptions serializerOptions, CurseForgeErrorReportFabric errorReportFabric)
     {
         private readonly CurseForge.APIClient.ApiClient _curseForgeClient = curseForgeClient;

@@ -1,0 +1,14 @@
+services:
+  server:
+    build:
+      context: .
+      target: final
+    ports:
+      - 8080:8080
+    secrets:
+      - curseforge_api_key_file
+    environment:
+      CurseForgeApiKey: /run/secrets/curseforge_api_key_file
+secrets:
+  curseforge_api_key_file:
+    file: curseforge_api_key.txt

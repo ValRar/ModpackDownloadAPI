@@ -4,6 +4,11 @@
     {
         private readonly HttpClient _httpClient = httpClient;
         public static bool Parallel { get; set; } = false;
+        public async Task<Stream> DownloadFile(string downloadURL)
+        {
+            var filesBytes = await _httpClient.GetByteArrayAsync(downloadURL);
+            return new MemoryStream(filesBytes);
+        }
         public Task<Stream[]> DownloadFiles(IEnumerable<string> downloadURLs)
         {
             if (Parallel) return DownloadParallel(downloadURLs);
@@ -38,11 +43,6 @@
                 filesBytes.Add(await _httpClient.GetByteArrayAsync(downloadURL));
             }
             return filesBytes.Select(b => new MemoryStream(b)).ToArray();
-        }
-        public async Task<Stream> DownloadFile(string downloadURL)
-        {
-            var filesBytes = await _httpClient.GetByteArrayAsync(downloadURL);
-            return new MemoryStream(filesBytes);
         }
     }
 }
