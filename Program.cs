@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using ModpackDownloadAPI;
+using ModpackDownloadAPI.Downloaders;
 using Modrinth;
 using Modrinth.Exceptions;
 using System.ComponentModel.DataAnnotations;
@@ -16,18 +17,21 @@ builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.AddHttpClient<FileDownloader>(client =>
 {
-    client.Timeout = TimeSpan.FromMinutes(10);
+    client.Timeout = TimeSpan.FromMinutes(5);
 });
+builder.Services.AddHttpClient<CurseForgeFileDownloader>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler() { AllowAutoRedirect = false });
 builder.Services.AddHttpClient<ModrinthClient>();
 builder.Services.AddSingleton(new CurseForge.APIClient.ApiClient(
-    File.ReadAllText(builder.Configuration.GetValue<string>("CurseForgeApiKeyFile") 
+    File.ReadAllText(builder.Configuration.GetValue<string>("CurseForgeApiKeyFile")
     ?? throw new NullReferenceException("Failed to get CurseForge API key file path."))
 ));
-builder.Services.AddSingleton<CurseForgeModpackParser>();
 builder.Services.AddSingleton<ArchiveCreator>();
 builder.Services.AddSingleton(new ModrinthClientConfig());
 builder.Services.AddSingleton(new JsonSerializerOptions(JsonSerializerDefaults.Web));
-builder.Services.AddSingleton<CurseForgeErrorReportFabric>();
+
+builder.Services.AddSingleton<ModrinthDownloadStrategy>();
+builder.Services.AddSingleton<CurseForgeDownloadStrategy>();
 
 var app = builder.Build();
 
@@ -67,7 +71,8 @@ app.MapGet("/downloadmodpack/modrinth", async (HttpContext context, ArchiveCreat
 }).WithName("DownloadFromModrinth")
 .WithOpenApi();
 
-app.MapGet("/downloadmodpack/curseforge", async (HttpContext context, CurseForge.APIClient.ApiClient curseForgeClient, CurseForgeModpackParser modpackParser, ArchiveCreator archiveCreator,
+app.MapGet("/downloadmodpack/curseforge", async (HttpContext context, 
+    CurseForge.APIClient.ApiClient curseForgeClient, ArchiveCreator archiveCreator,
     [FromQuery, Required] int projectId, [FromQuery, Required] int fileId) =>
 {
     var stopwatch = new Stopwatch();
@@ -80,7 +85,8 @@ app.MapGet("/downloadmodpack/curseforge", async (HttpContext context, CurseForge
     var archive = await archiveCreator.CreateCurseForgeArchive(modpackFileInfo.Data.DownloadUrl);
     context.Response.ContentLength = archive.Length;
     app.Logger.LogWarning("Execution completed in: {} seconds.", stopwatch.Elapsed.TotalSeconds);
-    return Results.File(archive, fileDownloadName: modpackFileInfo.Data.DisplayName + ".zip", contentType: "application/zip", enableRangeProcessing: true);
+    return Results.File(archive, fileDownloadName: modpackInfo.Data.Name + " " + modpackFileInfo.Data.DisplayName + ".zip", 
+        contentType: "application/zip", enableRangeProcessing: true);
 }).WithName("DownloadFromCurseForge")
 .WithOpenApi();
 

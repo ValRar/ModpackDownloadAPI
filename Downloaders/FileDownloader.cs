@@ -1,4 +1,5 @@
-﻿namespace ModpackDownloadAPI
+﻿
+namespace ModpackDownloadAPI.Downloaders
 {
     public class FileDownloader(HttpClient httpClient)
     {
